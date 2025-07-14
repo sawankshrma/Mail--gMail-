@@ -69,7 +69,26 @@ function load_mailbox(mailbox) {
       emails.forEach((email) => {
         const email_view = document.createElement("div");
         email_view.className = "email_view";
-        email_view.innerHTML = `<strong>${email.subject}</strong> ${email.body} <button class="hide">Archive</button>`;
+
+        //TODO: prevent more characters shown on emails.
+        if (mailbox === "archive") {
+          email_view.innerHTML = `
+            <div class="vieweing_user">${email.sender}</div>
+            <div><strong>${email.subject}</strong> ${email.body}</div>
+            <button class="archive" data-id="${email.id}">Unarchive</button>
+          `;
+        } else if (mailbox === "inbox") {
+          email_view.innerHTML = `
+            <div class="vieweing_user">${email.sender}</div>
+            <div><strong>${email.subject}</strong> ${email.body}</div>
+            <button class="archive" data-id="${email.id}" > Archive</button>
+          `;
+        } else if (mailbox === "sent") {
+          email_view.innerHTML = `
+            <div class="vieweing_user">${email.recipients[0]}</div>
+            <div><strong>${email.subject}</strong> ${email.body}</div>
+          `;
+        }
 
         email_view.addEventListener("click", function () {
           console.log("This element has been clicked!");
@@ -78,3 +97,27 @@ function load_mailbox(mailbox) {
       });
     });
 }
+
+document.addEventListener("click", (e) => {
+  if (e.target.className === "archive") {
+    e.stopPropagation(); //TODO: it doesn't work for now
+
+    const e_id = parseInt(e.target.dataset.id);
+    fetch(`/emails/${e_id}`)
+      .then((response) => response.json())
+      .then((email) => {
+        // ... do something else with email ...
+        const newStatus = !email.archived;
+
+        fetch(`/emails/${e_id}`, {
+          method: "PUT",
+          body: JSON.stringify({
+            archived: newStatus,
+          }),
+        }).then(() => {
+          //TODO: add animation effects
+          newStatus ? load_mailbox("inbox") : load_mailbox("archive");
+        });
+      });
+  }
+});

@@ -1,0 +1,9 @@
+textarea {
+  min-height: 400px;
+}
+
+.email_view {
+  background-color: #c5c1c1;
+  padding: 10px 5%;
+  margin-bottom: 5px;
+}

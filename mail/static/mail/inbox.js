@@ -45,6 +45,7 @@ function compose_email() {
       .then((result) => {
         // Print result
         console.log(result);
+        load_mailbox("sent");
       }); // TODO: REACT
   });
 }
@@ -69,55 +70,76 @@ function load_mailbox(mailbox) {
       emails.forEach((email) => {
         const email_view = document.createElement("div");
         email_view.className = "email_view";
+        email_view.dataset.id = email.id;
+        if (email.read === true) email_view.classList.add("seen");
 
-        //TODO: prevent more characters shown on emails.
         if (mailbox === "archive") {
           email_view.innerHTML = `
-            <div class="vieweing_user">${email.sender}</div>
-            <div><strong>${email.subject}</strong> ${email.body}</div>
+            <div class="vieweing_user"><span class="sender">${email.sender}</span></div>
+            <div>
+              <strong><span class="subject">${email.subject}</span></strong>
+              <span class="body-preview">${email.body}</span>
+            </div>
+            <div class = "time">${email.timestamp}</div>
             <button class="archive" data-id="${email.id}">Unarchive</button>
           `;
         } else if (mailbox === "inbox") {
           email_view.innerHTML = `
-            <div class="vieweing_user">${email.sender}</div>
-            <div><strong>${email.subject}</strong> ${email.body}</div>
+            <div class="vieweing_user"><span class="sender">${email.sender}</span></div>
+            <div>
+              <strong><span class="subject">${email.subject}</span></strong>
+              <span class="body-preview">${email.body}</span>
+            </div><div class = "time">${email.timestamp}</div>
             <button class="archive" data-id="${email.id}" > Archive</button>
+            
           `;
+          // console.log(email.timestamp);
         } else if (mailbox === "sent") {
           email_view.innerHTML = `
-            <div class="vieweing_user">${email.recipients[0]}</div>
-            <div><strong>${email.subject}</strong> ${email.body}</div>
+            <div class="vieweing_user"><span class="sender">${email.recipients[0]}</span></div>
+            <div>
+              <strong><span class="subject">${email.subject}</span></strong>
+              <span class="body-preview">${email.body}</span>
+            </div><div class = "time">${email.timestamp}</div>
           `;
         }
 
-        email_view.addEventListener("click", function () {
+        email_view.addEventListener("click", function (e) {
+          if (e.target.tagName.toLowerCase() === "button") {
+            const e_id = parseInt(email_view.dataset.id);
+            fetch(`/emails/${e_id}`)
+              .then((response) => response.json())
+              .then((email) => {
+                // ... do something else with email ...
+                const newStatus = !email.archived;
+
+                fetch(`/emails/${e_id}`, {
+                  method: "PUT",
+                  body: JSON.stringify({
+                    archived: newStatus,
+                  }),
+                }).then(() => {
+                  //TODO: add animation effects
+                  load_mailbox("inbox");
+                });
+              });
+            return;
+          }
+
           console.log("This element has been clicked!");
+          // email_view.classList.add("seen");
+
+          fetch(`/emails/${email_view.dataset.id}`, {
+            method: "PUT",
+            body: JSON.stringify({
+              read: true,
+            }),
+          }).then(() => {
+            //TODO: change this load_mailbox to actually load the contents of the email
+            load_mailbox(`${mailbox}`);
+          });
         });
         document.querySelector("#emails-view").append(email_view);
       });
     });
 }
-
-document.addEventListener("click", (e) => {
-  if (e.target.className === "archive") {
-    e.stopPropagation(); //TODO: it doesn't work for now
-
-    const e_id = parseInt(e.target.dataset.id);
-    fetch(`/emails/${e_id}`)
-      .then((response) => response.json())
-      .then((email) => {
-        // ... do something else with email ...
-        const newStatus = !email.archived;
-
-        fetch(`/emails/${e_id}`, {
-          method: "PUT",
-          body: JSON.stringify({
-            archived: newStatus,
-          }),
-        }).then(() => {
-          //TODO: add animation effects
-          newStatus ? load_mailbox("inbox") : load_mailbox("archive");
-        });
-      });
-  }
-});

@@ -2,14 +2,95 @@ textarea {
   min-height: 400px;
 }
 
+body {
+  /* background-color: rgb(69, 68, 68); */
+}
+
+.time {
+  font-size: 12px;
+  border: solid black 0.3px;
+  border-radius: 5px;
+  padding: 0 4px;
+}
+
 .email_view {
-  background-color: #c5c1c1;
+  background-color: white;
   padding: 10px 4%;
   margin-bottom: 5px;
   display: flex;
   flex-wrap: wrap;
   gap: 50px;
+  border: solid black 1px;
 }
 .archive {
   margin-left: auto;
+}
+
+.seen {
+  background-color: rgb(229, 223, 223);
+}
+
+#emails-view > div {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  overflow: hidden;
+}
+
+.subject,
+.body-preview {
+  display: inline-block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  vertical-align: bottom;
+}
+
+.body-preview {
+  max-width: 100%;
+}
+
+.subject {
+  max-width: 200px;
+  margin-right: 0.5rem;
+}
+
+#emails-view > div {
+  justify-content: space-between;
+}
+
+#emails-view > div > div:nth-child(2) {
+  flex: 1;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+button.archive {
+  flex-shrink: 0;
+}
+
+@media (max-width: 600px) {
+  #emails-view > div {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  #emails-view > div > div:nth-child(2) {
+    white-space: nowrap;
+    overflow: hidden;
+    width: 100%;
+  }
+
+  .sender,
+  .subject,
+  .body-preview {
+    display: block;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  button.archive {
+    align-self: flex-end;
+  }
 }

@@ -18,6 +18,8 @@ document.addEventListener("DOMContentLoaded", function () {
 function compose_email() {
   // Show compose view and hide other views
   document.querySelector("#emails-view").style.display = "none";
+  document.querySelector("#contents").style.display = "none";
+
   document.querySelector("#compose-view").style.display = "block";
 
   // Clear out composition fields
@@ -53,6 +55,7 @@ function compose_email() {
 function load_mailbox(mailbox) {
   // Show the mailbox and hide other views
   document.querySelector("#emails-view").style.display = "block";
+  document.querySelector("#contents").style.display = "none";
   document.querySelector("#compose-view").style.display = "none";
 
   // Show the mailbox name
@@ -73,10 +76,10 @@ function load_mailbox(mailbox) {
 
         if (mailbox === "archive") {
           common_to_all();
-          add_archive("Unarchive");
+          add_archive_button("Unarchive");
         } else if (mailbox === "inbox") {
           common_to_all();
-          add_archive("Archive");
+          add_archive_button("Archive");
         } else if (mailbox === "sent") {
           common_to_all();
         }
@@ -114,7 +117,7 @@ function load_mailbox(mailbox) {
           email_cards.appendChild(div_2_time);
         }
 
-        function add_archive(label) {
+        function add_archive_button(label) {
           const button = Object.assign(document.createElement("button"), {
             className: "archive",
           });
@@ -129,22 +132,23 @@ function load_mailbox(mailbox) {
           // difference b/w normal and archive button click
           if (e.target.tagName.toLowerCase() === "button") {
             const e_id = parseInt(email_cards.dataset.id);
-            p = fetch(`/emails/${e_id}`);
-            p.then((response) => response.json()).then((email) => {
-              const newStatus = !email.archived;
+            fetch(`/emails/${e_id}`)
+              .then((response) => response.json())
+              .then((email) => {
+                const newStatus = !email.archived;
 
-              async function archive() {
-                await fetch(`/emails/${e_id}`, {
-                  method: "PUT",
-                  body: JSON.stringify({
-                    archived: newStatus,
-                  }),
-                });
-                //TODO: add animation effects
-                load_mailbox("inbox");
-              }
-              archive();
-            });
+                async function archive() {
+                  await fetch(`/emails/${e_id}`, {
+                    method: "PUT",
+                    body: JSON.stringify({
+                      archived: newStatus,
+                    }),
+                  });
+                  //TODO: add animation effects
+                  load_mailbox("inbox");
+                }
+                archive();
+              });
 
             return;
           }
@@ -159,10 +163,155 @@ function load_mailbox(mailbox) {
             }),
           }).then(() => {
             //TODO: change this load_mailbox to actually load the contents of the email
-            load_mailbox(`${mailbox}`);
+            load_email(email_cards.dataset.id);
+            // load_mailbox(`${mailbox}`);
           });
         });
         document.querySelector("#emails-view").append(email_cards);
       });
     });
+}
+
+function load_email(ide) {
+  // ide is the id
+  document.querySelector("#emails-view").style.display = "none";
+  document.querySelector("#compose-view").style.display = "none";
+  document.querySelector("#contents").style.display = "block";
+  document.querySelector("#contents").innerHTML = "";
+
+  fetch(`/emails/${ide}`)
+    .then((response) => response.json())
+    .then((email) => {
+      const email_contents = Object.assign(document.createElement("div"), {
+        className: "contents-view",
+      });
+      const div_main = Object.assign(document.createElement("div"), {
+        className: "email_cards", // for similar css
+      });
+      const h4_header = document.createElement("h4");
+      h4_header.innerHTML = `${email.subject}`;
+      email_contents.appendChild(h4_header);
+
+      const h6_header = Object.assign(document.createElement("h6"), {
+        className: "h6-header",
+      });
+      // h6_header.innerHTML = `${email.subject}`;
+
+      const sender = document.createElement("strong");
+      sender.innerText = `from ${email.sender} to=> `;
+      h6_header.appendChild(sender);
+
+      const currentUser = document.getElementById("h2-email").innerText;
+      if (email.sender !== currentUser) {
+        // console.log("sawan");
+        const to = document.createElement("span");
+        to.innerHTML = "me";
+        h6_header.appendChild(to);
+
+        email.recipients
+          .filter((email) => email !== currentUser)
+          .forEach((email) => {
+            const to = document.createElement("span");
+            to.innerHTML = `, ${email}`;
+            h6_header.appendChild(to);
+          });
+      } else {
+        email.recipients.forEach((email) => {
+          const to = document.createElement("span");
+          to.innerHTML = `, ${email}`;
+          h6_header.appendChild(to);
+        });
+      }
+      const div_2_time = Object.assign(document.createElement("div"), {
+        className: "time",
+      });
+      div_2_time.innerHTML = `${email.timestamp}`;
+      h6_header.appendChild(div_2_time);
+
+      email_contents.appendChild(h6_header);
+
+      const body = Object.assign(document.createElement("div"), {
+        className: "email_body",
+      });
+      email.body
+        .split("\n")
+        .filter((para) => para.trim() !== "")
+        .forEach((para) => {
+          // console.log(para);
+          const pr = document.createElement("p");
+          pr.textContent = para;
+          body.appendChild(pr);
+        });
+      email_contents.appendChild(body);
+
+      document.querySelector("#contents").appendChild(email_contents);
+
+      // from here on.. the extra buttons are added
+      if (currentUser !== email.sender) {
+        const extra_buttons = Object.assign(document.createElement("div"), {
+          className: "ex_btns",
+        });
+
+        const arch = Object.assign(document.createElement("button"), {
+          className: "btn btn-sm btn-outline-primary",
+          id: "arch",
+        });
+        if (email.archived) arch.innerText = "Unarchrive";
+        else arch.innerText = "Archrive";
+
+        const seen1 = Object.assign(document.createElement("button"), {
+          className: "btn btn-sm btn-outline-primary",
+          id: "seen1",
+        });
+        seen1.innerText = "Mark as unread";
+
+        const reply = Object.assign(document.createElement("button"), {
+          className: "btn btn-sm btn-outline-primary",
+          id: "reply",
+        });
+        reply.innerText = "Reply";
+
+        extra_buttons.appendChild(arch);
+        extra_buttons.appendChild(seen1);
+        extra_buttons.appendChild(reply);
+        document.querySelector("#contents").appendChild(extra_buttons);
+        functionality(email, extra_buttons);
+      }
+    });
+}
+
+function functionality(email, extra_buttons) {
+  extra_buttons.addEventListener("click", function (e) {
+    if (e.target.id === "arch") {
+      const e_id = parseInt(email.id);
+      fetch(`/emails/${e_id}`)
+        .then((response) => response.json())
+        .then((email) => {
+          const newStatus = !email.archived;
+
+          async function archive() {
+            await fetch(`/emails/${e_id}`, {
+              method: "PUT",
+              body: JSON.stringify({
+                archived: newStatus,
+              }),
+            });
+            load_mailbox("inbox");
+          }
+          archive();
+        });
+    } else if (e.target.id === "seen1") {
+      const e_id = parseInt(email.id);
+      fetch(`/emails/${e_id}`, {
+        method: "PUT",
+        body: JSON.stringify({
+          read: false,
+        }),
+      }).then(() => {
+        load_mailbox("inbox");
+      });
+    } else if (e.target.id === "reply") {
+      // TODO: write the reply thingi here....
+    }
+  });
 }

@@ -63,73 +63,96 @@ function load_mailbox(mailbox) {
   fetch(`/emails/${mailbox}`)
     .then((response) => response.json())
     .then((emails) => {
-      // Print emails
-      console.log(emails);
-      // ... do something else with emails ...
+      // console.log(emails);
 
       emails.forEach((email) => {
-        const email_view = document.createElement("div");
-        email_view.className = "email_view";
-        email_view.dataset.id = email.id;
-        if (email.read === true) email_view.classList.add("seen");
+        const email_cards = document.createElement("div");
+        email_cards.className = "email_cards";
+        email_cards.dataset.id = email.id;
+        if (email.read === true) email_cards.classList.add("seen");
 
         if (mailbox === "archive") {
-          email_view.innerHTML = `
-            <div class="vieweing_user"><span class="sender">${email.sender}</span></div>
-            <div>
-              <strong><span class="subject">${email.subject}</span></strong>
-              <span class="body-preview">${email.body}</span>
-            </div>
-            <div class = "time">${email.timestamp}</div>
-            <button class="archive" data-id="${email.id}">Unarchive</button>
-          `;
+          common_to_all();
+          add_archive("Unarchive");
         } else if (mailbox === "inbox") {
-          email_view.innerHTML = `
-            <div class="vieweing_user"><span class="sender">${email.sender}</span></div>
-            <div>
-              <strong><span class="subject">${email.subject}</span></strong>
-              <span class="body-preview">${email.body}</span>
-            </div><div class = "time">${email.timestamp}</div>
-            <button class="archive" data-id="${email.id}" > Archive</button>
-            
-          `;
-          // console.log(email.timestamp);
+          common_to_all();
+          add_archive("Archive");
         } else if (mailbox === "sent") {
-          email_view.innerHTML = `
-            <div class="vieweing_user"><span class="sender">${email.recipients[0]}</span></div>
-            <div>
-              <strong><span class="subject">${email.subject}</span></strong>
-              <span class="body-preview">${email.body}</span>
-            </div><div class = "time">${email.timestamp}</div>
-          `;
+          common_to_all();
         }
 
-        email_view.addEventListener("click", function (e) {
-          if (e.target.tagName.toLowerCase() === "button") {
-            const e_id = parseInt(email_view.dataset.id);
-            fetch(`/emails/${e_id}`)
-              .then((response) => response.json())
-              .then((email) => {
-                // ... do something else with email ...
-                const newStatus = !email.archived;
+        function common_to_all() {
+          const div_viewing_user = Object.assign(
+            document.createElement("div"),
+            { className: "viewing_user" }
+          );
+          const span_viewing_user = Object.assign(
+            document.createElement("span"),
+            { className: "sender" }
+          );
+          div_viewing_user.appendChild(span_viewing_user);
 
-                fetch(`/emails/${e_id}`, {
+          const div_1 = document.createElement("div");
+          const strong = Object.assign(document.createElement("strong"), {
+            className: "subject",
+          });
+          strong.innerHTML = `${email.subject}`;
+          const span_preview = Object.assign(document.createElement("span"), {
+            className: "body-preview",
+          });
+          span_preview.innerHTML = `${email.body}`;
+          div_1.appendChild(strong);
+          div_1.appendChild(span_preview);
+
+          const div_2_time = Object.assign(document.createElement("div"), {
+            className: "time",
+          });
+          div_2_time.innerHTML = `${email.timestamp}`;
+
+          email_cards.appendChild(div_viewing_user);
+          email_cards.appendChild(div_1);
+          email_cards.appendChild(div_2_time);
+        }
+
+        function add_archive(label) {
+          const button = Object.assign(document.createElement("button"), {
+            className: "archive",
+          });
+          button.dataset.id = `${email.id}`;
+          button.innerHTML = label;
+          email_cards.appendChild(button);
+        }
+
+        // clicking features:-
+
+        email_cards.addEventListener("click", function (e) {
+          // difference b/w normal and archive button click
+          if (e.target.tagName.toLowerCase() === "button") {
+            const e_id = parseInt(email_cards.dataset.id);
+            p = fetch(`/emails/${e_id}`);
+            p.then((response) => response.json()).then((email) => {
+              const newStatus = !email.archived;
+
+              async function archive() {
+                await fetch(`/emails/${e_id}`, {
                   method: "PUT",
                   body: JSON.stringify({
                     archived: newStatus,
                   }),
-                }).then(() => {
-                  //TODO: add animation effects
-                  load_mailbox("inbox");
                 });
-              });
+                //TODO: add animation effects
+                load_mailbox("inbox");
+              }
+              archive();
+            });
+
             return;
           }
 
-          console.log("This element has been clicked!");
-          // email_view.classList.add("seen");
+          console.log("one of the email card has been clicked!");
+          // email_cards.classList.add("seen");
 
-          fetch(`/emails/${email_view.dataset.id}`, {
+          fetch(`/emails/${email_cards.dataset.id}`, {
             method: "PUT",
             body: JSON.stringify({
               read: true,
@@ -139,7 +162,7 @@ function load_mailbox(mailbox) {
             load_mailbox(`${mailbox}`);
           });
         });
-        document.querySelector("#emails-view").append(email_view);
+        document.querySelector("#emails-view").append(email_cards);
       });
     });
 }

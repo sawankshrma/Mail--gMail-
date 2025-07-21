@@ -10,49 +10,64 @@ document.addEventListener("DOMContentLoaded", function () {
     .querySelector("#archived")
     .addEventListener("click", () => load_mailbox("archive"));
   document.querySelector("#compose").addEventListener("click", compose_email);
+  const composeForm = document.querySelector("#compose-form");
+
+  composeForm.addEventListener("submit", (e) => {
+    e.preventDefault();
+    compose_it();
+  });
 
   // By default, load the inbox
   load_mailbox("inbox");
 });
 
+function compose_it() {
+  const recipients = document.querySelector("#compose-recipients").value;
+  const subject = document.querySelector("#compose-subject").value;
+  const body = document.querySelector("#compose-body").value;
+  fetch("/emails", {
+    method: "POST",
+    body: JSON.stringify({
+      recipients: recipients,
+      subject: subject,
+      body: body,
+    }),
+  })
+    .then(async (response) => {
+      const data = await response.json();
+      return { status: response.status, data: data };
+    })
+    .then((result) => {
+      console.log(result.data);
+      if (result.status === 201) {
+        load_mailbox("sent");
+        console.log("sent");
+      } else {
+        console.log("not sent!");
+        return alert(`${result.data.error}`);
+      }
+    });
+}
+
 function compose_email() {
+  // Push state for compose view
+  history.pushState({ view: "compose" }, "", "#compose");
+
   // Show compose view and hide other views
   document.querySelector("#emails-view").style.display = "none";
   document.querySelector("#contents").style.display = "none";
-
   document.querySelector("#compose-view").style.display = "block";
 
   // Clear out composition fields
   document.querySelector("#compose-recipients").value = "";
   document.querySelector("#compose-subject").value = "";
   document.querySelector("#compose-body").value = "";
-
-  const composeForm = document.querySelector("#compose-form");
-
-  composeForm.addEventListener("submit", (e) => {
-    e.preventDefault();
-
-    const recipients = document.querySelector("#compose-recipients").value;
-    const subject = document.querySelector("#compose-subject").value;
-    const body = document.querySelector("#compose-body").value;
-    fetch("/emails", {
-      method: "POST",
-      body: JSON.stringify({
-        recipients: recipients,
-        subject: subject,
-        body: body,
-      }),
-    })
-      .then((response) => response.data())
-      .then((result) => {
-        // Print result
-        console.log(result);
-        load_mailbox("sent");
-      }); // TODO: REACT
-  });
 }
 
 function load_mailbox(mailbox) {
+  // Push state for mailbox view
+  history.pushState({ view: "mailbox", mailbox: mailbox }, "", `#${mailbox}`);
+
   // Show the mailbox and hide other views
   document.querySelector("#emails-view").style.display = "block";
   document.querySelector("#contents").style.display = "none";
@@ -66,8 +81,6 @@ function load_mailbox(mailbox) {
   fetch(`/emails/${mailbox}`)
     .then((response) => response.json())
     .then((emails) => {
-      // console.log(emails);
-
       emails.forEach((email) => {
         const email_cards = document.createElement("div");
         email_cards.className = "email_cards";
@@ -93,6 +106,7 @@ function load_mailbox(mailbox) {
             document.createElement("span"),
             { className: "sender" }
           );
+          span_viewing_user.innerHTML = `${email.sender}`;
           div_viewing_user.appendChild(span_viewing_user);
 
           const div_1 = document.createElement("div");
@@ -126,17 +140,14 @@ function load_mailbox(mailbox) {
           email_cards.appendChild(button);
         }
 
-        // clicking features:-
-
+        // clicking features
         email_cards.addEventListener("click", function (e) {
-          // difference b/w normal and archive button click
           if (e.target.tagName.toLowerCase() === "button") {
             const e_id = parseInt(email_cards.dataset.id);
             fetch(`/emails/${e_id}`)
               .then((response) => response.json())
               .then((email) => {
                 const newStatus = !email.archived;
-
                 async function archive() {
                   await fetch(`/emails/${e_id}`, {
                     method: "PUT",
@@ -144,7 +155,6 @@ function load_mailbox(mailbox) {
                       archived: newStatus,
                     }),
                   });
-                  //TODO: add animation effects
                   load_mailbox("inbox");
                 }
                 archive();
@@ -153,27 +163,25 @@ function load_mailbox(mailbox) {
             return;
           }
 
-          console.log("one of the email card has been clicked!");
-          // email_cards.classList.add("seen");
-
           fetch(`/emails/${email_cards.dataset.id}`, {
             method: "PUT",
             body: JSON.stringify({
               read: true,
             }),
           }).then(() => {
-            //TODO: change this load_mailbox to actually load the contents of the email
             load_email(email_cards.dataset.id);
-            // load_mailbox(`${mailbox}`);
           });
         });
+
         document.querySelector("#emails-view").append(email_cards);
       });
     });
 }
 
 function load_email(ide) {
-  // ide is the id
+  // Push state for individual email view
+  history.pushState({ view: "email", email_id: ide }, "", `#email-${ide}`);
+
   document.querySelector("#emails-view").style.display = "none";
   document.querySelector("#compose-view").style.display = "none";
   document.querySelector("#contents").style.display = "block";
@@ -186,7 +194,7 @@ function load_email(ide) {
         className: "contents-view",
       });
       const div_main = Object.assign(document.createElement("div"), {
-        className: "email_cards", // for similar css
+        className: "email_cards",
       });
       const h4_header = document.createElement("h4");
       h4_header.innerHTML = `${email.subject}`;
@@ -195,7 +203,6 @@ function load_email(ide) {
       const h6_header = Object.assign(document.createElement("h6"), {
         className: "h6-header",
       });
-      // h6_header.innerHTML = `${email.subject}`;
 
       const sender = document.createElement("strong");
       sender.innerText = `from ${email.sender} to=> `;
@@ -203,7 +210,6 @@ function load_email(ide) {
 
       const currentUser = document.getElementById("h2-email").innerText;
       if (email.sender !== currentUser) {
-        // console.log("sawan");
         const to = document.createElement("span");
         to.innerHTML = "me";
         h6_header.appendChild(to);
@@ -222,6 +228,7 @@ function load_email(ide) {
           h6_header.appendChild(to);
         });
       }
+
       const div_2_time = Object.assign(document.createElement("div"), {
         className: "time",
       });
@@ -237,7 +244,6 @@ function load_email(ide) {
         .split("\n")
         .filter((para) => para.trim() !== "")
         .forEach((para) => {
-          // console.log(para);
           const pr = document.createElement("p");
           pr.textContent = para;
           body.appendChild(pr);
@@ -246,41 +252,39 @@ function load_email(ide) {
 
       document.querySelector("#contents").appendChild(email_contents);
 
-      // from here on.. the extra buttons are added
+      const extra_buttons = Object.assign(document.createElement("div"), {
+        className: "ex_btns",
+      });
       if (currentUser !== email.sender) {
-        const extra_buttons = Object.assign(document.createElement("div"), {
-          className: "ex_btns",
-        });
-
-        const arch = Object.assign(document.createElement("button"), {
-          className: "btn btn-sm btn-outline-primary",
-          id: "arch",
-        });
-        if (email.archived) arch.innerText = "Unarchrive";
-        else arch.innerText = "Archrive";
-
-        const seen1 = Object.assign(document.createElement("button"), {
-          className: "btn btn-sm btn-outline-primary",
-          id: "seen1",
-        });
-        seen1.innerText = "Mark as unread";
-
         const reply = Object.assign(document.createElement("button"), {
           className: "btn btn-sm btn-outline-primary",
           id: "reply",
         });
         reply.innerText = "Reply";
 
-        extra_buttons.appendChild(arch);
-        extra_buttons.appendChild(seen1);
+        const arch = Object.assign(document.createElement("button"), {
+          className: "btn btn-sm btn-outline-primary",
+          id: "arch",
+        });
+        arch.innerText = email.archived ? "Unarchrive" : "Archrive";
+
         extra_buttons.appendChild(reply);
-        document.querySelector("#contents").appendChild(extra_buttons);
-        functionality(email, extra_buttons);
+        extra_buttons.appendChild(arch);
       }
+
+      const seen1 = Object.assign(document.createElement("button"), {
+        className: "btn btn-sm btn-outline-primary",
+        id: "seen1",
+      });
+      seen1.innerText = "Mark as unread";
+
+      extra_buttons.appendChild(seen1);
+      document.querySelector("#contents").appendChild(extra_buttons);
+      functionality(email, extra_buttons, currentUser);
     });
 }
 
-function functionality(email, extra_buttons) {
+function functionality(email, extra_buttons, currentUser) {
   extra_buttons.addEventListener("click", function (e) {
     if (e.target.id === "arch") {
       const e_id = parseInt(email.id);
@@ -311,7 +315,74 @@ function functionality(email, extra_buttons) {
         load_mailbox("inbox");
       });
     } else if (e.target.id === "reply") {
-      // TODO: write the reply thingi here....
+      load_reply(email.sender, currentUser);
     }
   });
 }
+
+function load_reply(sender, currentUser) {
+  // Push state for reply view
+  history.pushState(
+    { view: "reply", sender: sender, currentUser: currentUser },
+    "",
+    `#reply-${sender}`
+  );
+
+  document.querySelector("#emails-view").style.display = "none";
+  document.querySelector("#compose-view").style.display = "none";
+  document.querySelector("#contents").style.display = "block";
+  document.querySelectorAll(".reply").forEach((form) => {
+    form.innerText = "";
+  });
+
+  const reply = Object.assign(document.createElement("div"), {
+    className: "reply",
+  });
+  reply.innerHTML = ` <nav></nav><div id="reply-block">
+  <h5>Reply</h5>
+  <form id="compose-form">
+    <div class="form-group">
+      From:
+      <input disabled class="form-control" value="${currentUser}" />
+    </div>
+    <div class="form-group">
+      To: <input disabled id="compose-recipients" class="form-control" value="${sender}" />
+    </div>
+    <div class="form-group">
+      <input class="form-control" id="compose-subject" placeholder="Subject" />
+    </div>
+    <textarea
+      class="form-control"
+      id="compose-body"
+      placeholder="Body"
+    ></textarea>
+    <input type="submit" class="btn btn-primary" />
+  </form>
+</div>`;
+  document.querySelector("#contents").appendChild(reply);
+
+  reply.addEventListener("submit", function (e) {
+    e.preventDefault();
+    compose_it();
+  });
+}
+
+// Popstate handler for browser back/forward navigation
+window.addEventListener("popstate", (event) => {
+  const state = event.state;
+
+  if (!state) {
+    load_mailbox("inbox");
+    return;
+  }
+
+  if (state.view === "mailbox") {
+    load_mailbox(state.mailbox);
+  } else if (state.view === "email") {
+    load_email(state.email_id);
+  } else if (state.view === "compose") {
+    compose_email();
+  } else if (state.view === "reply") {
+    load_reply(state.sender, state.currentUser);
+  }
+});
